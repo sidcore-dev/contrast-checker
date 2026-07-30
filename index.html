@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contrast Checker — WCAG Color Contrast Ratio Tool</title>
+<meta name="description" content="Check the WCAG AA/AAA contrast ratio between two colors, with a live text preview. Runs entirely in your browser.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f5f6f8;
+    --surface: #ffffff;
+    --text: #1a1d23;
+    --text-muted: #4b5262;
+    --border: #d3d7e0;
+    --accent: #2954e0;
+    --pass-bg: #e3f5e8;
+    --pass-text: #106b31;
+    --pass-border: #9ed9ae;
+    --fail-bg: #fbe7e7;
+    --fail-text: #9c1c1c;
+    --fail-border: #efadad;
+    --focus-ring: #2954e0;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161b;
+      --surface: #1e2129;
+      --text: #eef0f4;
+      --text-muted: #b1b7c4;
+      --border: #383e4a;
+      --accent: #7fa1ff;
+      --pass-bg: #103820;
+      --pass-text: #7fe0a0;
+      --pass-border: #1f5c37;
+      --fail-bg: #3a1717;
+      --fail-text: #ff9d9d;
+      --fail-border: #6b2727;
+      --focus-ring: #7fa1ff;
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 2rem 1rem 4rem;
+  }
+
+  main {
+    max-width: 880px;
+    margin: 0 auto;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    margin: 0 0 0.25rem;
+  }
+
+  p.lede {
+    color: var(--text-muted);
+    margin: 0 0 2rem;
+    max-width: 60ch;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+  }
+
+  fieldset {
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  legend {
+    font-weight: 600;
+    padding: 0 0 0.75rem;
+    font-size: 1rem;
+  }
+
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  input[type="color"] {
+    width: 3rem;
+    height: 3rem;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: none;
+    cursor: pointer;
+  }
+
+  label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+
+  .hex-field {
+    flex: 1;
+  }
+
+  input[type="text"] {
+    width: 100%;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 1rem;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  input[type="text"]:invalid {
+    border-color: var(--fail-border);
+  }
+
+  input:focus-visible,
+  button:focus-visible,
+  a:focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .swap-row {
+    display: flex;
+    justify-content: center;
+    margin: 0.25rem 0 0.5rem;
+  }
+
+  button.swap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+
+  button.swap:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .ratio-block {
+    text-align: center;
+    padding: 1.5rem 1rem;
+  }
+
+  .ratio-value {
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ratio-label {
+    color: var(--text-muted);
+    margin-top: 0.4rem;
+    font-size: 0.95rem;
+  }
+
+  .results {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+  }
+
+  .result {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .result .req-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .result .req-threshold {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 400;
+  }
+
+  .badge {
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+
+  .badge.pass {
+    background: var(--pass-bg);
+    color: var(--pass-text);
+    border-color: var(--pass-border);
+  }
+
+  .badge.fail {
+    background: var(--fail-bg);
+    color: var(--fail-text);
+    border-color: var(--fail-border);
+  }
+
+  .preview {
+    border-radius: 10px;
+    padding: 2.5rem 2rem;
+    border: 1px solid var(--border);
+    transition: background-color 0.1s, color 0.1s;
+  }
+
+  .preview .preview-large {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+  }
+
+  .preview .preview-normal {
+    font-size: 1rem;
+    margin: 0;
+  }
+
+  .error-msg {
+    color: var(--fail-text);
+    font-size: 0.8rem;
+    min-height: 1.1em;
+    margin-top: 0.35rem;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 2rem;
+  }
+
+  footer a {
+    color: var(--accent);
+  }
+
+  h2 {
+    font-size: 1.1rem;
+    margin: 0 0 1rem;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Contrast Checker</h1>
+  <p class="lede">
+    Check the contrast ratio between two colors against the WCAG 2.1 success
+    criteria for text. Everything runs locally in your browser — nothing is
+    uploaded anywhere.
+  </p>
+
+  <section class="card" aria-labelledby="pickers-heading">
+    <h2 id="pickers-heading">Colors</h2>
+    <div class="picker-grid">
+      <fieldset>
+        <legend>Text color</legend>
+        <div class="color-row">
+          <input type="color" id="fg-picker" value="#1a1d23" aria-label="Text color picker">
+          <div class="hex-field">
+            <label for="fg-hex">Hex value</label>
+            <input type="text" id="fg-hex" value="#1a1d23" inputmode="text" autocomplete="off" spellcheck="false" aria-describedby="fg-error">
+            <div class="error-msg" id="fg-error" role="alert"></div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Background color</legend>
+        <div class="color-row">
+          <input type="color" id="bg-picker" value="#ffffff" aria-label="Background color picker">
+          <div class="hex-field">
+            <label for="bg-hex">Hex value</label>
+            <input type="text" id="bg-hex" value="#ffffff" inputmode="text" autocomplete="off" spellcheck="false" aria-describedby="bg-error">
+            <div class="error-msg" id="bg-error" role="alert"></div>
+          </div>
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="swap-row">
+      <button type="button" class="swap" id="swap-btn">Swap colors ⇅</button>
+    </div>
+  </section>
+
+  <section class="card ratio-block" aria-live="polite">
+    <div class="ratio-value" id="ratio-value">21.00:1</div>
+    <div class="ratio-label">contrast ratio</div>
+
+    <div class="results" id="results">
+      <div class="result">
+        <span>
+          <span class="req-name">AA</span>
+          <span class="req-threshold">Normal text (≥ 4.5:1)</span>
+        </span>
+        <span class="badge" id="badge-aa-normal">—</span>
+      </div>
+      <div class="result">
+        <span>
+          <span class="req-name">AA</span>
+          <span class="req-threshold">Large text (≥ 3:1)</span>
+        </span>
+        <span class="badge" id="badge-aa-large">—</span>
+      </div>
+      <div class="result">
+        <span>
+          <span class="req-name">AAA</span>
+          <span class="req-threshold">Normal text (≥ 7:1)</span>
+        </span>
+        <span class="badge" id="badge-aaa-normal">—</span>
+      </div>
+      <div class="result">
+        <span>
+          <span class="req-name">AAA</span>
+          <span class="req-threshold">Large text (≥ 4.5:1)</span>
+        </span>
+        <span class="badge" id="badge-aaa-large">—</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="preview-heading">
+    <h2 id="preview-heading">Live preview</h2>
+    <div class="preview" id="preview">
+      <p class="preview-large">The quick brown fox jumps over the lazy dog</p>
+      <p class="preview-normal">This is what normal-sized body text looks like with the colors above. Large text is generally 18pt (24px) regular, or 14pt (~18.5px) bold and larger.</p>
+    </div>
+  </section>
+
+  <footer>
+    Static, client-side tool — no data leaves your browser.
+    <a href="https://github.com/sidcore-dev/contrast-checker">Source on GitHub</a>
+  </footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var fgPicker = document.getElementById("fg-picker");
+  var bgPicker = document.getElementById("bg-picker");
+  var fgHex = document.getElementById("fg-hex");
+  var bgHex = document.getElementById("bg-hex");
+  var fgError = document.getElementById("fg-error");
+  var bgError = document.getElementById("bg-error");
+  var ratioValueEl = document.getElementById("ratio-value");
+  var preview = document.getElementById("preview");
+  var swapBtn = document.getElementById("swap-btn");
+
+  var badges = {
+    aaNormal: document.getElementById("badge-aa-normal"),
+    aaLarge: document.getElementById("badge-aa-large"),
+    aaaNormal: document.getElementById("badge-aaa-normal"),
+    aaaLarge: document.getElementById("badge-aaa-large")
+  };
+
+  var HEX_RE = /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+  function normalizeHex(value) {
+    var m = HEX_RE.exec(value.trim());
+    if (!m) return null;
+    var hex = m[1];
+    if (hex.length === 3) {
+      hex = hex.split("").map(function (c) { return c + c; }).join("");
+    }
+    return "#" + hex.toLowerCase();
+  }
+
+  function hexToRgb(hex) {
+    var n = parseInt(hex.slice(1), 16);
+    return {
+      r: (n >> 16) & 255,
+      g: (n >> 8) & 255,
+      b: n & 255
+    };
+  }
+
+  function channelLuminance(c) {
+    var cs = c / 255;
+    return cs <= 0.03928 ? cs / 12.92 : Math.pow((cs + 0.055) / 1.055, 2.4);
+  }
+
+  function relativeLuminance(rgb) {
+    return 0.2126 * channelLuminance(rgb.r) +
+           0.7152 * channelLuminance(rgb.g) +
+           0.0722 * channelLuminance(rgb.b);
+  }
+
+  function contrastRatio(hexA, hexB) {
+    var la = relativeLuminance(hexToRgb(hexA));
+    var lb = relativeLuminance(hexToRgb(hexB));
+    var lighter = Math.max(la, lb);
+    var darker = Math.min(la, lb);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  function setBadge(el, pass) {
+    el.textContent = pass ? "Pass" : "Fail";
+    el.className = "badge " + (pass ? "pass" : "fail");
+  }
+
+  function readColor(hexInput, colorInput, errorEl) {
+    var normalized = normalizeHex(hexInput.value);
+    if (!normalized) {
+      errorEl.textContent = "Enter a valid hex color, e.g. #336699";
+      hexInput.setAttribute("aria-invalid", "true");
+      return null;
+    }
+    errorEl.textContent = "";
+    hexInput.removeAttribute("aria-invalid");
+    colorInput.value = normalized;
+    return normalized;
+  }
+
+  function update() {
+    var fg = readColor(fgHex, fgPicker, fgError);
+    var bg = readColor(bgHex, bgPicker, bgError);
+
+    preview.style.color = fg || preview.style.color;
+    preview.style.backgroundColor = bg || preview.style.backgroundColor;
+
+    if (!fg || !bg) {
+      ratioValueEl.textContent = "—";
+      Object.keys(badges).forEach(function (key) {
+        badges[key].textContent = "—";
+        badges[key].className = "badge";
+      });
+      return;
+    }
+
+    var ratio = contrastRatio(fg, bg);
+    ratioValueEl.textContent = ratio.toFixed(2) + ":1";
+
+    setBadge(badges.aaNormal, ratio >= 4.5);
+    setBadge(badges.aaLarge, ratio >= 3);
+    setBadge(badges.aaaNormal, ratio >= 7);
+    setBadge(badges.aaaLarge, ratio >= 4.5);
+  }
+
+  fgPicker.addEventListener("input", function () {
+    fgHex.value = fgPicker.value;
+    update();
+  });
+  bgPicker.addEventListener("input", function () {
+    bgHex.value = bgPicker.value;
+    update();
+  });
+  fgHex.addEventListener("input", update);
+  bgHex.addEventListener("input", update);
+
+  swapBtn.addEventListener("click", function () {
+    var tmp = fgHex.value;
+    fgHex.value = bgHex.value;
+    bgHex.value = tmp;
+    update();
+  });
+
+  update();
+})();
+</script>
+</body>
+</html>
